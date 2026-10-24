@@ -1,0 +1,27 @@
+# uv project settings — lifegame
+#
+# Authority: docs/plan/phase-01-foundation/acceptance.md (criteria A1, A3).
+# Rule: every cache uv writes must stay inside this checkout; nothing on C:.
+#
+# `cache-dir` is relative on purpose. An absolute path would name one specific
+# checkout, so a clone or a git worktree of this repository would send its cache
+# back into the original checkout — each copy would believe it was isolated
+# while sharing (and fighting over) one directory. A relative path resolves
+# against the working directory, which AGENTS.md §1 fixes at the repository
+# root, so it stays inside whichever checkout is running.
+#
+# The authoritative mechanism is UV_CACHE_DIR, exported by scripts/env.ps1 from
+# that script's own location; this file is the fallback for a shell that has not
+# sourced it.
+#
+# `python-install-dir` is NOT a valid uv.toml key; the interpreter payload
+# directory is controlled by UV_PYTHON_INSTALL_DIR, set in scripts/env.ps1.
+
+cache-dir = ".cache/uv"
+
+# Managed interpreters only — the project must not silently bind to a
+# system-wide interpreter whose temp behaviour we do not control.
+python-preference = "only-managed"
+
+# Keep the bytecode of resolved dependencies reproducible across machines.
+compile-bytecode = true

@@ -1,0 +1,128 @@
+      <div class="world-split">
+        <div class="canvas-area" id="canvas-area">
+          <canvas id="grid" width="800" height="600"></canvas>
+        </div>
+
+        <!-- The panel is a column beside the canvas, not a thing drawn over it:
+             collapsing it gives the space back to the world rather than hiding
+             the world behind it. The handle stays visible in every state, because
+             a panel that can hide itself with no way back is a panel that loses
+             the user's history. -->
+        <button id="panel-handle" class="panel-handle" type="button"></button>
+
+        <aside id="panel" class="panel">
+          <header class="panel-head">
+            <h2 data-i18n="panel.readout"></h2>
+            <div class="panel-actions">
+              <button id="panel-wide" type="button"></button>
+            </div>
+          </header>
+
+          <!-- The readouts describe the view and the world, so they belong with
+               the panel that describes both. Each value is written by the world
+               page; nothing about a value is written here. -->
+          <dl class="readout">
+            <div><dt data-i18n="label.generation"></dt><dd id="readout-generation"></dd></div>
+            <div><dt data-i18n="label.population"></dt><dd id="readout-population"></dd></div>
+            <div><dt data-i18n="label.origin"></dt><dd id="readout-origin"></dd></div>
+            <div><dt data-i18n="label.span"></dt><dd id="readout-span"></dd></div>
+            <div><dt data-i18n="label.rule"></dt><dd id="readout-rule"></dd></div>
+            <div><dt data-i18n="label.world"></dt><dd id="readout-world"></dd></div>
+            <div><dt data-i18n="label.cell"></dt><dd id="readout-cell"></dd></div>
+          </dl>
+        </aside>
+      </div>
+
+      <div class="controls">
+        <button id="toggle-run" type="button" data-i18n="action.run"></button>
+        <button id="step-once" type="button" data-i18n="action.step"></button>
+        <button id="clear-world" type="button" data-i18n="action.clear"></button>
+        <!-- Undo is the last cell edit, not a timeline move: it toggles the cells
+             the last click touched, and a step, a run, a pattern or a selection
+             makes it unavailable rather than undoing somebody else's change. -->
+        <button id="undo-edit" type="button" data-i18n="action.undo" disabled></button>
+        <!-- The explicit editing mode. The world is paused while it is open,
+             and the controls below are the transaction tools: one gesture is one
+             atomic edit, not a run of single-cell commands. -->
+        <button id="edit-mode" type="button" data-i18n="action.editMode"></button>
+        <div id="edit-controls" class="edit-controls" hidden>
+          <label class="control">
+            <span data-i18n="label.tool"></span>
+            <select id="edit-tool"></select>
+          </label>
+          <button id="edit-undo" type="button" data-i18n="action.undo" disabled></button>
+          <button id="edit-redo" type="button" data-i18n="action.redo" disabled></button>
+          <label class="control">
+            <span data-i18n="label.snippetName"></span>
+            <input id="snippet-name" type="text" maxlength="64" />
+          </label>
+          <button id="snippet-save" type="button" data-i18n="action.saveSnippet" disabled></button>
+          <button id="snippet-publish" type="button" data-i18n="action.publish" disabled></button>
+          <label class="control">
+            <span data-i18n="label.transform"></span>
+            <select id="snippet-transform"></select>
+          </label>
+          <label class="control">
+            <span data-i18n="label.mode"></span>
+            <select id="snippet-mode"></select>
+          </label>
+          <label class="control">
+            <span data-i18n="label.snippet"></span>
+            <select id="snippet-palette"></select>
+          </label>
+          <span id="edit-status" class="edit-status" role="status"></span>
+          <!-- The collaborators in the session, from their presence reports. -->
+          <span id="edit-presence" class="edit-presence" role="status" hidden></span>
+        </div>
+        <label class="control">
+          <span data-i18n="label.tps"></span>
+          <!-- min, max and value are the core's, applied from hello.limits by
+               the world page. Nothing about the rate is written here. -->
+          <input id="tps" type="range" step="1" />
+          <output id="tps-value"></output>
+        </label>
+        <label class="control">
+          <span data-i18n="label.grid"></span>
+          <!-- Options come from GRID_WIDTHS in theme.mjs. -->
+          <select id="grid-width"></select>
+        </label>
+        <label class="control">
+          <span data-i18n="label.storage"></span>
+          <!-- Options come from hello.limits.representations: which
+               representations exist is the core's to declare. Switching one
+               preserves the world — the service exports it, restarts the core
+               on the other representation and imports it back. -->
+          <select id="representation"></select>
+        </label>
+        <!-- The rule editor, in the same row as the other settings and with no
+             markup of its own beyond the controls: the presets come from
+             RULE_PRESETS in rule.mjs, and the words on the custom entry come
+             from the locale table. Choosing emits `set_rule` immediately; the
+             text field is checked here first and the core still has the last
+             word. -->
+        <div class="rule">
+          <label class="control">
+            <span data-i18n="label.rulePreset"></span>
+            <select id="rule-preset"></select>
+          </label>
+          <label class="control">
+            <span data-i18n="label.ruleCustom"></span>
+            <input id="rule-custom" type="text" placeholder="B3/S23" />
+          </label>
+          <button id="rule-apply" type="button" data-i18n="action.setRule"></button>
+          <!-- Why the last attempt was refused. Empty and hidden until there is
+               something to say; a refusal never changes the running rule. -->
+          <span id="rule-error" class="rule-error" role="alert" hidden></span>
+        </div>
+        <!-- A pattern is placed by name rather than drawn cell by cell. The
+             names come from the service's library (GET /api/patterns); the
+             press places the selected shape at the centre of the view, clamped
+             into the world, and the service resolves the cells. -->
+        <div class="patterns">
+          <label class="control">
+            <span data-i18n="label.pattern"></span>
+            <select id="pattern-name"></select>
+          </label>
+          <button id="pattern-place" type="button" data-i18n="action.place"></button>
+        </div>
+      </div>

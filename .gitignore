@@ -1,21 +1,39 @@
-# Local runtime data and editor/OS noise. The repository is the assignment
-# itself; nothing below is needed to run or read it.
+# lifegame — ignored paths.
+#
+# Rule: transient locations live inside the repository (ADR 0002) but are never
+# tracked. Everything listed here is either a transient location or
+# editor/OS noise.
 
-TEMP/
+# Transient locations created by scripts/env.ps1 and scripts/bootstrap.ps1
 .cache/
+TEMP/
+
+# Runtime data: the directory is tracked, its contents are not
+data/*
+!data/README.md
+
+# Python
 .venv/
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
+build/
+dist/
 
+# Node
 node_modules/
-data/
-*.db
-*.db-wal
-*.db-shm
+pnpm-debug.log*
 
-.DS_Store
+# C++ tooling build output
+tools/documentation/build/
+
+# Editors and operating system
+.vscode/
+.idea/
 Thumbs.db
 desktop.ini
-*.zip
+
+# Local assignment deliverables (personal submission data)
+deliverables/

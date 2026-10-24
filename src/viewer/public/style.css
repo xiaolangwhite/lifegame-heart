@@ -1,0 +1,885 @@
+/* lifegame viewer — presentation only; every behaviour lives in the scripts.
+ *
+ * One stylesheet for the three routed pages: the shared layout's chrome (header,
+ * tab navigation, footer, error banner) and each page's own body.
+ *
+ * Two palettes, selected by `data-theme` on <html>. The attribute is always set
+ * to a concrete 'dark' or 'light': the shared layout sets it before the first
+ * paint so a stored choice does not flash the system theme, and the shell keeps
+ * it in step afterwards. Resolving "no explicit choice means follow the system"
+ * is done in theme.mjs, not here, so the rule exists once and is testable.
+ *
+ * The canvas paints itself, so it cannot use these variables directly. It reads
+ * --alive, --dead and --grid back through getComputedStyle and caches them;
+ * every other colour on the page is CSS.
+ *
+ * **One rule per concept.** Every control group is a `.control`, so one rule
+ * lays out all of them; every `<select>` shares the appearance rule with
+ * `<button>`, so a select added tomorrow looks like the ones here. There is no
+ * rule that targets a single control by its own class or id, because that is how
+ * a control ends up with no styling at all — which is exactly what happened to
+ * the storage select before this version.
+ *
+ * **A rule must name something an element actually carries.** The panel's three
+ * states were once written as `.stage[data-panel='…']` while the routed markup
+ * kept the id `stage` and changed the class, so collapse and full-width matched
+ * nothing: the logic had tests, the styles did not. `tests/css-audit.test.mjs`
+ * now fails if a class in this file is not put on an element in a class-bearing
+ * position (`class=`, `className=`, `classList.add`), and separately if a
+ * `data-panel` rule hangs off a class the stage element does not carry.
+ *
+ * **The toolbar does not move when the language changes.** Every label has the
+ * same minimum width and every button the same, so `tps`/`速率` and
+ * `storage`/`存储` occupy the same space. Without it, switching language
+ * reflows the row and the controls the user was about to click move away. */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --ink: #e8eaed;
+  --muted: #9aa0a6;
+  --background: #101216;
+  --panel: #171a1f;
+  --line: #2a2f36;
+  --alive: #7fd4ff;
+  --dead: #0b0d10;
+  --grid: rgba(255, 255, 255, 0.14);
+  --accent: #3f8cff;
+  --danger: #ff6b6b;
+  --ok: #6ee7a8;
+
+  --button: #22262d;
+  --button-active: #2c3138;
+  --error-background: rgba(255, 107, 107, 0.12);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --ink: #1b1f24;
+  --muted: #5b636c;
+  --background: #f4f6f8;
+  --panel: #ffffff;
+  --line: #d3d9df;
+  --alive: #1466a8;
+  --dead: #ffffff;
+  --grid: rgba(0, 0, 0, 0.16);
+  --accent: #1f6feb;
+  --danger: #b3261e;
+  --ok: #1a7f4b;
+
+  --button: #eceff3;
+  --button-active: #dfe4ea;
+  --error-background: rgba(179, 38, 30, 0.08);
+}
+
+/* The panel's column width, outside the palette blocks because the layout does
+   not change with the theme. It is a variable because the three panel states
+   differ in this one number, and because the canvas has to be *given* the space
+   rather than discovering it a frame later. */
+:root {
+  --panel-width: min(360px, 42vw);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--background);
+  color: var(--ink);
+  font: 13px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.bar {
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+footer.bar {
+  border-bottom: none;
+  border-top: 1px solid var(--line);
+}
+
+header.bar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.bar h1 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.edit-presence {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.status[data-state='ok'] {
+  color: var(--ok);
+}
+
+.status[data-state='down'] {
+  color: var(--danger);
+}
+
+/* -- the routed pages ---------------------------------------------------- */
+
+/* The three routes list each other here, from the one route table in
+   `routes.mjs`. The current route is marked with `aria-current`, which is the
+   attribute a screen reader understands and the one this rule selects: a second
+   class would be a second thing to keep in step. */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+
+.tab {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.tab:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.tab[aria-current='page'] {
+  background: var(--button-active);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+/* The stage is the page's body, and each route lays its own out. The world has
+   the canvas and the panel side by side with its controls underneath; the other
+   two are a single scrolling column. */
+.stage.page-world {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 8px;
+}
+
+.world-split {
+  display: flex;
+  align-items: stretch;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.stage.page-history,
+.stage.page-archives {
+  display: block;
+  overflow: auto;
+  padding: 10px 12px;
+}
+
+/* The history route is two panes side by side, each scrolling on its own: the
+   tree can be longer than the page and the preview has to stay on screen while
+   it is read. The page itself therefore does not scroll — the tree does. */
+.stage.page-history {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+/* The stage is the canvas and the panel side by side, so collapsing the panel
+   gives the world the space rather than uncovering it. */
+.stage {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+  min-inline-size: 0;
+}
+
+.canvas-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.panel-handle {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 8px 2px;
+  writing-mode: vertical-rl;
+  font-size: 12px;
+}
+
+/* The panel is hidden by taking it out of the flex row: a panel that stayed in
+   the layout while invisible would keep the canvas narrow for nothing. */
+.stage[data-panel='collapsed'] .panel {
+  display: none;
+}
+
+/* Full width means the panel is the subject and the canvas steps aside. */
+.stage[data-panel='wide'] .canvas-area {
+  display: none;
+}
+
+.panel {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 10px;
+  inline-size: var(--panel-width);
+  min-inline-size: 0;
+  padding: 8px;
+  background: var(--panel);
+  border-inline-start: 1px solid var(--line);
+  overflow: auto;
+}
+
+.stage[data-panel='wide'] .panel {
+  flex: 1 1 100%;
+  inline-size: auto;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panel-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.archives {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.archive-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archive-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 6px;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.archive-name {
+  overflow-wrap: anywhere;
+}
+
+.archive-figures {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.archive-actions {
+  display: flex;
+  gap: 4px;
+  grid-column: 1 / -1;
+}
+
+.archive-row[data-current='true'] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* A text input, dressed like the selects beside it. An element rule rather than
+   one scoped to a container, so the next text field on this page looks like
+   this one without anyone remembering to add it. */
+input[type='text'] {
+  padding: 3px 6px;
+  background: var(--button);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.archive-rename-input {
+  min-inline-size: 0;
+}
+
+#grid {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--dead);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+#grid.dragging {
+  cursor: grabbing;
+}
+
+.error {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--error-background);
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  color: var(--danger);
+  white-space: pre-wrap;
+}
+
+/* -- controls ------------------------------------------------------------ */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* Every control group: the label and its input on one line, in one style.
+   A group that is not in this rule is a group with no layout. */
+.control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+/* The label column is a fixed minimum in *characters*, so the four groups do
+   not move when the language changes. */
+.control > span {
+  min-inline-size: 7ch;
+}
+
+.control select,
+.control output {
+  min-inline-size: 10ch;
+}
+
+.control output {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buttons and selects share one appearance: a select that was styled by its own
+   rule is a select that will be missed when the next one is added. */
+button,
+select {
+  padding: 4px 8px;
+  background: var(--button);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+}
+
+button {
+  min-inline-size: 8ch;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+button:hover,
+select:hover {
+  border-color: var(--accent);
+}
+
+button:active {
+  background: var(--button-active);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.control input[type='range'] {
+  inline-size: 160px;
+  accent-color: var(--accent);
+}
+
+/* -- the rule editor ------------------------------------------------------ */
+
+/* The rule controls are one group inside the toolbar: the preset select, the
+   text field that takes a rule by hand, the button that sends it and the line
+   that says why the last attempt was refused. The group carries no appearance
+   of its own — its controls are dressed by the element rules above, which is
+   what keeps a control added here looking like the ones beside it. */
+.rule,
+.patterns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A refusal belongs beside the field that produced it, so it is drawn in the
+   toolbar rather than only in the banner, which reports the service's own
+   failures. It appears between the button and the end of the row, and it is
+   empty — and so takes no room — until there is something to say. */
+.rule > .rule-error {
+  color: var(--danger);
+}
+
+.session-queued {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.edit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.edit-status {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* -- readout ------------------------------------------------------------- */
+
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  margin: 0;
+}
+
+.readout div {
+  display: flex;
+  gap: 8px;
+}
+
+.readout dt {
+  color: var(--muted);
+}
+
+.readout dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.hint kbd {
+  padding: 0 4px;
+  background: var(--button);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+/* -- history timeline ---------------------------------------------------- */
+
+/* The history route's two panes. The tree is narrow and the preview takes the
+   rest, because the preview is the only thing on this route that shows the
+   world: a column as wide as the page would leave nothing to look at. */
+.history-split {
+  display: grid;
+  grid-template-columns: minmax(12rem, 22rem) minmax(0, 1fr);
+  gap: 10px;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.history-tree,
+.history-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-block-size: 0;
+  min-inline-size: 0;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.history-tree {
+  overflow: hidden;
+}
+
+/* The tree itself. `hidden` until the core says it is recording, which is what
+   a core with no history at all reports: the note beside it says so in words.
+
+   This is also the drag surface: `touch-action: none` keeps a touch drag for the
+   tree instead of letting the page scroll, and the text cannot be selected while
+   the pointer is down. */
+.timeline {
+  display: block;
+  flex: 1 1 auto;
+  margin: 0;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow: auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.timeline.dragging {
+  cursor: grabbing;
+}
+
+/* `hidden` must win over the display rule above, or a core with no history
+   would still show an empty tree. */
+.timeline[hidden] {
+  display: none;
+}
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+/* A node: one line tall, whatever it is showing.
+
+   The generation and the marks are the row's only in-flow children; the node's
+   numbers live in the absolutely positioned overlay below, so opening them
+   cannot change this row's height or move the rows after it. The connector
+   gutter is absolutely positioned for the same reason.
+
+   The indent is the tree: one `--depth` per fork the node is past, computed by
+   history.mjs and capped there, so a long linear run is one column and a deep
+   fork cannot walk off the page. The gutter beside it is one cell per level, at
+   the same width, so a connector lands exactly above its parent's. */
+.timeline-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 5ch minmax(0, 1fr);
+  gap: 0 6px;
+  align-items: center;
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding-block: 2px;
+  padding-inline: calc(4px + var(--depth, 0) * 14px) 4px;
+  line-height: 1.35;
+  white-space: nowrap;
+  /* A row is a button so it can be focused and activated from the keyboard, but
+     it must not look like one: the shared button chrome would draw a box around
+     every generation. */
+  background: transparent;
+  border-color: transparent;
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The connector gutter: one 14 px cell per level, in the row's own indentation,
+   which is what makes the tree readable as a tree. `line` continues a branch
+   past this row, `elbow` starts one that has a sibling after it, `end` starts
+   the last one, and `blank` is a chain below the last branch — indented, with
+   nothing to draw. */
+.timeline-guides {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 4px;
+  display: flex;
+  pointer-events: none;
+}
+
+.timeline-guide {
+  position: relative;
+  inline-size: 14px;
+}
+
+.timeline-guide-line::before,
+.timeline-guide-elbow::before,
+.timeline-guide-end::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 50%;
+  border-inline-start: 1px solid var(--line);
+}
+
+/* A line and an elbow continue below themselves, into the next row's gap; the
+   end of a branch stops at the middle, where its own elbow turns off. */
+.timeline-guide-line::before,
+.timeline-guide-elbow::before {
+  inset-block: -3px;
+}
+
+.timeline-guide-end::before {
+  inset-block: -3px 50%;
+}
+
+.timeline-guide-elbow::after,
+.timeline-guide-end::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 50% 0;
+  border-block-start: 1px solid var(--line);
+}
+
+.timeline-generation {
+  font-weight: 600;
+}
+
+.timeline-flags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+/* The node's numbers: an overlay, so a row is one line tall whether or not it is
+   being looked at. Collapsed to nothing by default and opened by `data-open`,
+   which the page sets for the pointer and for the keyboard alike — the same
+   state for both, and one a test can drive without a browser. A transition
+   rather than a display toggle, so the overlay unfolds instead of jumping.
+
+   **Both inline insets are set, and that is what keeps the box inside the row.**
+   A box that is only *started* is sized by its content, and this one's content is
+   a node's numbers — wider than the tree it is drawn in. Measured in a real
+   browser (Edge 155, driven over CDP against the served page), not inferred from
+   this file: with the pointer over the newest row, opening the overlay took the
+   tree's `scrollWidth` from 319 px to 329 px. The horizontal scrollbar that
+   appeared took 15 px off the tree's `clientHeight` (145 -> 130), that bar lands
+   on the bottom of the last row — which is the newest generation, the row the
+   pointer was on — so the pointer left the row, the overlay closed, the
+   scrollbar went away, the pointer was over the row again, and it flickered for
+   as long as the pointer stayed there. Bounding the box to the row and clipping
+   its content removes the *cause* rather than the symptom: the overlay can no
+   longer add anything to the scroll container's scrollable overflow, so no
+   scrollbar appears and nothing moves. A longer delay, a shorter transition or
+   `scrollbar-gutter` would all have left the overflow in place — the last of
+   them only reserves the inline-axis gutter, which is the *vertical* bar here
+   and was never the one that appeared.
+
+   **A collapsed overlay occupies no inline size, and starts on the row's own
+   text column.** It used to be 20 px wide while closed — the two 8 px gaps
+   between three collapsed details plus 4 px of padding — painted in
+   `var(--panel)`, which is `#ffffff` in the light theme, at an offset that
+   ignored the row's indentation. Measured in the same browser: on the
+   working-point row, the one row that paints a background of its own, that box
+   covered 20 px of the 43 px "工作点" badge — the first two characters of the
+   label, exactly the white box that was reported over "工作". Zero width and
+   zero padding cover nothing, in either theme; the offset is the row's own
+   padding plus its generation column plus its column gap, so the overlay lands
+   on the row's second column at every depth and not only at depth zero. */
+.timeline-overlay {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: calc(4px + var(--depth, 0) * 14px + 5ch + 6px) 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-inline-size: 0;
+  overflow: hidden;
+  background: var(--panel);
+  pointer-events: none;
+}
+
+/* The open state: the overlay takes the row's text column, and its content is
+   clipped to it rather than allowed to widen the tree. */
+.timeline-row[data-open='true'] .timeline-overlay {
+  max-inline-size: none;
+  padding-inline-end: 4px;
+}
+
+.timeline-detail {
+  max-inline-size: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transform: translateX(-0.35rem);
+  transition:
+    max-inline-size 200ms ease,
+    opacity 160ms ease,
+    transform 200ms ease;
+}
+
+.timeline-row[data-open='true'] .timeline-detail {
+  max-inline-size: 26ch;
+  opacity: 1;
+  transform: none;
+}
+
+/* The working point: the node the world is on and the node the next record
+   appends to. It is what clicking a row moves, so it is the row's selected
+   state as well as its position. Declared after `[data-current]` on purpose, so
+   the row a person just selected keeps the stronger marker when it is also the
+   generation the world shows. */
+.timeline-row[data-current='true'] {
+  background: var(--button-active);
+  box-shadow: inset 2px 0 0 var(--muted);
+}
+
+.timeline-row[data-head='true'] {
+  background: var(--button-active);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* A node with more than one child is where two branches part. */
+.timeline-row[data-fork='true'] .timeline-generation::after {
+  content: ' \2022';
+  color: var(--accent);
+}
+
+.timeline-branch,
+.timeline-forks,
+.timeline-head,
+.timeline-current {
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.timeline-head {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.timeline-kind {
+  color: var(--muted);
+}
+
+.timeline-figures {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-earlier {
+  inline-size: 100%;
+  padding: 4px;
+}
+
+/* The selected generation was recorded under a rule the world is not running.
+   It sits under the tree, beside the row it is about, and it states the two
+   rules and offers the one press that adopts the generation's own. It carries no
+   appearance of its own: the button is dressed by the shared element rule, like
+   every other control, which is what keeps a control added here looking like the
+   ones beside it. `hidden` has to beat the display rule below, as it does for the
+   tree, or a core with nothing to say would still show an empty row. */
+.rule-gap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.rule-gap[hidden] {
+  display: none;
+}
+
+.rule-gap-note {
+  margin: 0;
+}
+
+/* A refusal belongs beside the button that produced it, and it takes no room
+   while there is nothing to say. */
+.rule-gap-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+/* -- the history preview -------------------------------------------------- */
+
+.preview-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: end;
+}
+
+/* The preview canvas paints itself, like the world's, so it carries a class
+   rather than an id: the stylesheet names `#grid` alone, and a second id rule
+   would be the exception that makes the rule meaningless. */
+.preview-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  min-inline-size: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.preview-canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  background: var(--dead);
+  cursor: grab;
+  touch-action: none;
+}
+
+.preview-canvas.dragging {
+  cursor: grabbing;
+}

@@ -1,3 +1,26 @@
+# lifegame — line-ending and binary policy.
+#
+# The documentation rules require LF in every text file, so the repository
+# normalises on the way in and checks out LF on every platform. Without this,
+# a Windows checkout would reintroduce CRLF and the documentation gate would
+# fail for a reason that has nothing to do with the change.
+#
+# Authority: docs/DOCUMENTATION_RULES.md §12, docs/AI_DOCUMENTATION_GUIDE.md §7.
+
 * text=auto eol=lf
+
+# Gate fixtures deliberately contain CRLF pairs, a BOM and a lone CR. Git must
+# not normalise them: a normalised fixture stops testing the rule it exists for,
+# and the failure would only appear on a fresh clone.
+tools/documentation/tests/fixtures/** -text
+
 *.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.zip binary
+*.7z binary
 *.mp4 binary

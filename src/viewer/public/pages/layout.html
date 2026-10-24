@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Filled from public/locales.mjs by the shell. Empty here rather than
+         carrying English that a translator would have to find in markup. The
+         page id rides along as data rather than as text: the visible title is
+         the brand on every route, and a served page still says which route it
+         is for a reader of the response. -->
+    <title data-i18n="brand.title" data-page="{{page-id}}"></title>
+    <script>
+      // Set the palette before the first paint, so a stored choice does not
+      // flash the system theme and a system preference is honoured immediately.
+      //
+      // The theme is the only setting that needs this: it changes colour, and a
+      // colour applied a frame late is visible. The language does *not* need a
+      // block here, because no text is rendered until the shell fills it from
+      // the locale table, so there is nothing to flash. That is also why the
+      // locale key appears once, in locales.mjs, and the theme key and its
+      // precedence rule appear twice — here and in theme.mjs, which owns them.
+      // The duplication is pinned by a test that fails if the two disagree.
+      (function () {
+        var stored = null;
+        try {
+          stored = window.localStorage.getItem('lifegame.viewer.theme');
+        } catch (error) {
+          stored = null; // storage unavailable: fall through to the system
+        }
+        var explicit = stored === 'dark' || stored === 'light';
+        var dark = explicit
+          ? stored === 'dark'
+          : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body data-page="{{page-id}}">
+    <header class="bar">
+      <!-- The product name, which is the same word in every language: the one
+           piece of text that is not in the locale table, and deliberately so. -->
+      <h1>lifegame</h1>
+      <p id="core-status" class="status" data-state="unknown"></p>
+      <!-- The navigation is rendered from routes.mjs, so the three routes list
+           each other and the current one is marked. The labels are locale keys
+           like every other string; the shell fills them. -->
+      <nav class="tabs">{{nav}}</nav>
+    </header>
+
+    <!-- The stage is the page: the canvas and its panel on the world route, the
+         tree on the history route, the archive manager on the archives route.
+         `data-panel` is the world route's three-state panel; a route without a
+         panel leaves it at `normal`. -->
+    <main id="stage" class="stage page page-{{page-id}}" data-panel="normal">
+{{content}}
+    </main>
+
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <footer class="bar">
+      <div class="controls">
+        <button id="toggle-theme" type="button"></button>
+        <label class="control">
+          <span data-i18n="label.language"></span>
+          <!-- Options come from LOCALES in locales.mjs. -->
+          <select id="locale"></select>
+        </label>
+        <label class="control">
+          <span data-i18n="label.session"></span>
+          <!-- Options come from GET /api/sessions, which is the service's own
+               registry; the id is carried in the URL so a tab keeps it. -->
+          <select id="session"></select>
+        </label>
+        <button id="session-new" type="button" data-i18n="action.newSession"></button>
+        <!-- How many creations are waiting for a slot: the service caps its
+             sessions and queues the rest, and the page states the count. -->
+        <span id="session-queued" class="session-queued" hidden></span>
+      </div>
+      <!-- Built from HINT_SEGMENTS in locales.mjs by the world page, which is
+           the route whose keys and gestures the segments describe. The element
+           is shared so the footer is written once; a route that has no hint
+           leaves it empty. -->
+      <p id="hint" class="hint"></p>
+    </footer>
+
+    {{scripts}}
+  </body>
+</html>

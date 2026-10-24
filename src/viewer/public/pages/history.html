@@ -1,0 +1,59 @@
+      <!-- The history route is two panes: the tree on the left, the generation it
+           selects on the right. Neither is a panel: the tree is the page, and
+           the preview is the only thing on this route that draws, so a person
+           looking for a state they recorded can see it beside the row that names
+           it rather than on another page. -->
+      <div class="history-split">
+        <section class="history-tree">
+          <header class="panel-head">
+            <h2 data-i18n="timeline.title"></h2>
+            <div class="panel-actions">
+              <button id="step-back" type="button" data-i18n="action.stepBack"></button>
+              <button id="step-forward" type="button" data-i18n="action.stepForward"></button>
+            </div>
+          </header>
+
+          <!-- The tree. `hidden` until the core says it is recording, which is
+               also the state the tree has when the core has no history at all:
+               the note below says so in words. A row is built by the history
+               page as a node — the generation, the branch it belongs to and its
+               position in the tree always visible, the node's own numbers in an
+               overlay that opens while the pointer is over the row or the row
+               holds keyboard focus (see style.css). The list is the drag
+               surface: panning it moves the tree, not the page. -->
+          <section id="timeline" class="timeline" hidden>
+            <ol id="timeline-list" class="timeline-list"></ol>
+          </section>
+
+          <!-- The rule the selected generation was recorded under, when it is
+               not the rule in force. A session's rule can change part-way
+               through and a node carries the rule that produced it, while
+               selecting a node restores its cells and not its rule — so the two
+               can disagree, and that is worth saying in the two strings
+               themselves rather than acting on silently. The page fills the
+               sentence and hides the block again as soon as the two agree; the
+               button is the only thing here that sends a rule, and it is never
+               pressed for the person. -->
+          <div id="rule-gap" class="rule-gap" hidden>
+            <p id="rule-gap-note" class="rule-gap-note"></p>
+            <button id="rule-gap-adopt" type="button"></button>
+            <p id="rule-gap-error" class="rule-gap-error" hidden></p>
+          </div>
+
+          <p id="timeline-note" class="panel-note"></p>
+        </section>
+
+        <section class="history-preview">
+          <header class="panel-head">
+            <h2 data-i18n="preview.title"></h2>
+            <!-- Where the preview is looking and, when the live set was too
+                 large to read, that it is showing a coarser answer. Filled by
+                 the history page; nothing about it is written here. -->
+            <p id="preview-note" class="preview-note"></p>
+          </header>
+
+          <div id="preview-area" class="preview-area">
+            <canvas id="preview" class="preview-canvas" width="800" height="600"></canvas>
+          </div>
+        </section>
+      </div>

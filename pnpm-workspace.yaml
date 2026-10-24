@@ -1,0 +1,19 @@
+# pnpm workspace and package-manager settings.
+#
+# pnpm 10 moved package-manager settings out of .npmrc into this file, so
+# `store-dir` in .npmrc has no effect on pnpm 12. Both locations are declared
+# here instead, inside the checkout.
+#
+# The paths are relative on purpose: an absolute path would name one specific
+# checkout, so a clone or a git worktree would write its store back into the
+# original checkout. pnpm resolves these against the workspace root, so they
+# stay inside whichever checkout is running.
+#
+# Authority: docs/adr/governance-and-build/0002-confine-transient-artifacts-to-repository.md
+# Verified by: scripts/verify-temp-isolation.ps1
+
+packages:
+  - "."
+
+storeDir: .cache/pnpm-store
+cacheDir: .cache/pnpm-cache

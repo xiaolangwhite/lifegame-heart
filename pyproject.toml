@@ -1,0 +1,66 @@
+[project]
+name = "lifegame"
+version = "0.2.1"
+description = "Large-world Game of Life: Python 3.14 core, NodeJS service and UI, C++ for tooling only."
+requires-python = ">=3.14"
+dependencies = [
+    # The vectorised substrate for the sparse world. Chosen and recorded in
+    # docs/adr/simulation-core/. The portable fallback is the pure-Python path
+    # kept by the measurement harness.
+    "numpy>=2.5",
+]
+
+[project.optional-dependencies]
+# The history layer's default backend is SQLite, which is in the standard
+# library and therefore needs no entry here. MySQL is supported for a shared
+# store and its driver is optional so that an installation which never uses it
+# installs nothing new. See docs/adr/data-and-formats/.
+mysql = [
+    "pymysql>=1.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.0",
+    "ruff>=0.14.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "src"
+module-name = "lifegame"
+
+# uv settings that overlap with uv.toml (cache-dir, python-preference,
+# compile-bytecode) deliberately live in uv.toml only: when both files exist,
+# uv.toml wins and a duplicated field would be silently ignored.
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+src = ["src", "tests"]
+# Everything below is a transient location: package caches, the virtual
+# environment, build output and in-repository temporary files. Linting them
+# would report thousands of violations from third-party sources.
+exclude = [
+    ".cache",
+    ".venv",
+    "TEMP",
+    "data",
+    "node_modules",
+    "tools/documentation/build",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Benchmarks measure rather than assert and take seconds, so the default run
+# excludes them; the performance record names the command that runs them.
+addopts = '-ra --strict-markers -m "not benchmark"'
+markers = [
+    "benchmark: measurement harness; excluded from the default run",
+]

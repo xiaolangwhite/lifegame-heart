@@ -1,0 +1,19 @@
+      <section class="archives">
+        <header class="panel-head">
+          <h2 data-i18n="panel.archives"></h2>
+          <div class="panel-actions">
+            <button id="archive-refresh" type="button" data-i18n="action.refresh"></button>
+          </div>
+        </header>
+        <div class="archive-export">
+          <label class="control">
+            <span data-i18n="archive.nameLabel"></span>
+            <!-- A name, never a path: the service resolves it inside the data
+                 directory and refuses anything with a separator or a drive. -->
+            <input id="archive-name" type="text" />
+          </label>
+          <button id="export-archive" type="button" data-i18n="action.export"></button>
+        </div>
+        <ul id="archive-list" class="archive-list"></ul>
+        <p id="archive-note" class="panel-note"></p>
+      </section>

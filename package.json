@@ -1,0 +1,22 @@
+{
+  "name": "lifegame",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Large-world Game of Life: Python 3.14 core, NodeJS service and UI, C++ for tooling only.",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@12.6.0",
+  "scripts": {
+    "bootstrap": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1",
+    "env:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-temp-isolation.ps1",
+    "docs:validate": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/documentation/validate-documentation.ps1",
+    "docs:validate:json": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/documentation/validate-documentation.ps1 --format json",
+    "docs:test": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/documentation/tests/run-tests.ps1",
+    "viewer": "node src/viewer/server.mjs",
+    "viewer:test": "node --test \"src/viewer/tests/*.test.mjs\""
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

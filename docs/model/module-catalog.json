@@ -1,0 +1,29 @@
+{
+  "modules": [
+    {
+      "name": "environment",
+      "owner": "phase-01-foundation",
+      "language": "powershell"
+    },
+    {
+      "name": "documentation",
+      "owner": "phase-01-foundation",
+      "language": "cpp"
+    },
+    {
+      "name": "world",
+      "owner": "phase-02-simulation-core",
+      "language": "python"
+    },
+    {
+      "name": "viewer",
+      "owner": "phase-02-simulation-core",
+      "language": "node"
+    },
+    {
+      "name": "store",
+      "owner": "phase-02-simulation-core",
+      "language": "python"
+    }
+  ]
+}

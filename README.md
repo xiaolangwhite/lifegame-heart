@@ -1,77 +1,129 @@
-# Conway's Game of Life — a heart from a noise initial state
+# lifegame
 
-A course assignment: use Conway's Game of Life to make a heart.
+A large-world Game of Life simulation platform.
 
-The requirements are that the initial and final images differ, the final image is a
-heart, and every pixel follows the Game of Life rule B3/S23.
+The subject is not a small grid. It is a world large enough that the
+implementation strategy itself — memory layout, update scheduling, persistence
+and transport — decides whether the world can exist at all. The project
+definition and the principles that follow from it are owned by
+[ENGINE_STANDARD.md](ENGINE_STANDARD.md).
 
-![initial state](initial.png)
+## Language split
 
-![final heart](final.png)
-
-## Idea
-
-**The final image is a 13 × 11 pixel heart.** Every "pixel" of the drawing is a
-2 × 2 block, which is a still life under B3/S23: each cell has exactly three
-neighbours, so the block never changes. The heart is 50 × 42 cells with 364 live
-cells; it is large and clear, and from generation 1 on it is stable.
-
-**The initial image is not a heart.** It is a 1226-cell noise pattern found by
-reverse construction: a SAT solver was asked for a state whose next generation is
-exactly the heart, while maximising the number of live cells outside the heart.
-The result is a dense, unstructured pattern in which no heart can be seen.
-
-**One generation later the heart appears.** Applying B3/S23 once to the noise
-pattern produces exactly the 364-cell heart. Because the heart is a still life,
-generation 2 and every later generation are identical to it. The initial and final
-images are therefore completely different, while every step uses only the ordinary
-Game of Life rule.
-
-The included video shows the transition: four seconds of the noise initial state,
-then eight seconds of the stable heart.
-
-## Files
-
-| File | Contents |
+| Layer | Language |
 |---|---|
-| `heart.py` | The complete standalone program: builds the patterns, verifies the transition, writes the images and the video |
-| `heart.html` | A self-contained web page with the evolution; it auto-transitions after 2.5 s and has Run, Step and Reset controls |
-| `initial.png` | The initial state: a dense noise pattern, not a heart |
-| `final.png` | Generation 1: the 364-cell heart |
-| `heart.mp4` | The evolution video: noise → heart |
-| `initial_cells.json` | The 1226 live cells of the initial state |
-| `heart_cells.json` | The 364 live cells of the heart |
-| `edit-mode-notes.md` | How the pattern was written into the viewer with the editing-mode API |
-| `edit_mode_record.json` | The machine-readable session and transaction record |
+| Simulation core | Python 3.14 |
+| Service and interface | NodeJS 24 |
+| Tooling | C++20 |
 
-## Run
+C++ is tooling only and never enters the runtime path without a superseding
+ADR. See [ENGINE_STANDARD.md](ENGINE_STANDARD.md) §1.1.
 
-```bash
-python3 heart.py
+## Requirements
+
+* Windows with PowerShell 5.1 or newer
+* [uv](https://docs.astral.sh/uv/) (manages CPython 3.14)
+* Node.js ≥ 24 with pnpm
+* CMake and a C++20 compiler for the documentation gate
+* git
+
+## Quick start
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+Set-Location <repo>
+. .\scripts\env.ps1          # required: redirects every transient location in-repo
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1
 ```
 
-The script needs only Python 3.9+ and its standard library for the images and the
-verification. Encoding `heart.mp4` additionally needs `ffmpeg` on `PATH`; the
-included video was made that way. The script prints:
+`scripts/env.ps1` must be sourced in **every** shell that runs a toolchain
+command. It redirects `TEMP`, `TMP`, `TMPDIR`, the uv cache, the managed
+interpreter payload, the pip cache, the bytecode cache and the npm cache into
+this repository, and it refuses to continue when one of them points at the
+system volume. The process-scope execution policy is required because the
+machine policy is `RemoteSigned` and these scripts are unsigned.
 
+## Run the world
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/viewer.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/viewer.ps1 -Port 9000
 ```
-initial cells: 1226
-heart cells:   364
-generation 1 equals the heart: True
-the heart is stable: True
-initial image differs from final image: True
+
+Then open the address the script prints and use the tabs:
+
+| Route | What it is for |
+|---|---|
+| `/world` | the canvas: click a cell to bring it to life, drag to pan, scroll or pinch to zoom, and run, pause, step or clear |
+| `/history` | the recorded generations as a tree: select one to look at it, and editing from there adds a branch |
+| `/archives` | export the history to a named file, list, rename, delete, and import one back |
+
+**Use the script rather than starting the service by hand.** The viewer starts
+Python cores as children, and a core that outlives its service keeps holding the
+history database — observed here, not theorised about. The script starts the
+service, streams its output, and on Ctrl+C reaps the whole process tree, then
+verifies that nothing was left and exits non-zero if something was. It also
+refuses to start while a core from an earlier run is still alive, because that
+would make two writers on one store; `-CleanStray` reaps them first.
+
+The browser is only a surface: the rule is evaluated by the Python core in
+`src/lifegame/world/`, which the service drives over a line protocol. See
+[src/viewer/README.md](src/viewer/README.md) for the HTTP surface and
+[docs/model/world/interfaces.md](docs/model/world/interfaces.md) for the
+protocol itself.
+
+## Gates
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1 -Full
 ```
 
-To view the web version, open `heart.html` in a browser (or serve this folder with
-any static file server).
+The default set runs the documentation gate, its self-tests, the tool build,
+the static isolation phase, the Python tests and lint, and the Node install,
+and takes about five seconds. `-Full` adds the isolation dynamic phase and a
+bootstrap idempotence run for a delivered revision. The runner sources
+`scripts/env.ps1` itself, so it does not depend on the preamble above.
 
-## Rule
+A gate that cannot run is reported as not run, never as passed.
 
-Every cell looks at its eight neighbours:
+## Repository layout
 
-- a live cell with 2 or 3 live neighbours survives;
-- a dead cell with exactly 3 live neighbours is born;
-- everything else dies or stays dead.
+| Path | Contents |
+|---|---|
+| `src/lifegame/` | Python packages — one directory per module |
+| `tests/` | one test package per module |
+| `tools/` | C++ tooling, one directory per tool |
+| `docs/` | the documentation system |
+| `dev-log/` | executed verification evidence, one file per version |
+| `evidence/` | focused evidence that is not tied to a version |
+| `scripts/` | environment, bootstrap, the single verification entry point and the isolation check |
+| `.cache/`, `TEMP/`, `data/` | in-repository transient, cache and data locations |
+| `AGENTS.md` | operating rules for agents and humans working here |
 
-That is **B3/S23**. The `step()` function in `heart.py` is a direct implementation
-of this rule; no extra rule or manual edit is applied between generations.
+## Documentation map
+
+| Question | Document |
+|---|---|
+| What is this project and what are its principles? | [ENGINE_STANDARD.md](ENGINE_STANDARD.md) |
+| How do I work in this repository? | [AGENTS.md](AGENTS.md) |
+| How are documents structured and coupled? | [docs/DOCUMENTATION_RULES.md](docs/DOCUMENTATION_RULES.md) |
+| What must each document contain, and what counts as evidence? | [docs/AI_DOCUMENTATION_GUIDE.md](docs/AI_DOCUMENTATION_GUIDE.md) |
+| Where is the documentation entry point? | [docs/README.md](docs/README.md) |
+| Which version is which? | [docs/plan/VERSIONS.md](docs/plan/VERSIONS.md) |
+| What are the modules? | [docs/model/module-catalog.json](docs/model/module-catalog.json) |
+| Which decisions were taken, and why? | [docs/adr/README.md](docs/adr/README.md) |
+| What are the machine profiles and the measurement workflow? | [docs/plan/PERFORMANCE_ACCEPTANCE.md](docs/plan/PERFORMANCE_ACCEPTANCE.md) |
+
+## Licence
+
+Not yet decided. Until an ADR records a licence, this repository is
+all-rights-reserved by its author.
+
+## Heart assignment
+
+The Game of Life heart assignment built with this project is in [`heart/`](heart/).
+It contains the evolution code (`heart.py`, `heart.html`), the initial and final
+images, the video, and the editing-mode record.
+
+**Live demo:** [xiaolangwhite.github.io/lifegame-heart/heart/heart.html](https://xiaolangwhite.github.io/lifegame-heart/heart/heart.html)
