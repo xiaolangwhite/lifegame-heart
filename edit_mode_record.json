@@ -1,0 +1,36 @@
+{
+  "tool": "lifegame editing mode API (v0.4.0)",
+  "world": {
+    "width": 60,
+    "height": 54,
+    "rule": "B3/S23"
+  },
+  "session": "s1",
+  "enter": {
+    "editMode": true,
+    "version": 0,
+    "hash": "bce0fb7f6247c8e6fc1b9deb0b7ee6ce4460dcf2ab644cc49e15627b20fdf164"
+  },
+  "transaction": {
+    "txId": "heart-seed",
+    "version": 1,
+    "hash": "963a6547ec0653a994a1c7231c62e9a94509418f9a82e312d61b11b17f4152f3",
+    "born": 1226,
+    "died": 0
+  },
+  "leave": {
+    "editMode": false,
+    "resumed": false
+  },
+  "step": {
+    "generation": 1,
+    "count": 1
+  },
+  "final": {
+    "generation": 1,
+    "population": 364,
+    "exportedCells": 364,
+    "equalsHeart": true,
+    "heartCells": 364
+  }
+}

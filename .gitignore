@@ -1,0 +1,21 @@
+# Local runtime data and editor/OS noise. The repository is the assignment
+# itself; nothing below is needed to run or read it.
+
+TEMP/
+.cache/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+node_modules/
+data/
+*.db
+*.db-wal
+*.db-shm
+
+.DS_Store
+Thumbs.db
+desktop.ini
+*.zip
